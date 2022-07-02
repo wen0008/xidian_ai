@@ -1,0 +1,267 @@
+import random
+
+#读入样本数据
+fh=open('iris1.txt')
+lst0=list()
+lst1=list()
+datas=list()
+types=list()
+typesdatas=dict()#样本类型统计（各类型数量）
+i=0
+j=0
+for line in fh:
+    line=line.rstrip()
+    lst0=line.split(',')
+    if(lst0==['']):
+        break
+    lst1.append(lst0[0:4])
+    types.append(lst0[4])
+for type in types:
+    typesdatas[type]=typesdatas.get(type,0)+1
+#print(typesdatas)
+
+#数据类型转换为float
+lst2=list()
+while(i<len(lst1)):
+    datas.append(list())
+    i+=1
+i=0
+while(i<len(lst1)):
+    while(j<len(lst1[0])):
+        if(i==0):
+            lst2.append(float(lst1[i][j]))
+            j+=1
+            continue
+        lst2[j]=float(lst1[i][j])
+        j+=1
+    j=0
+    while(j<4):
+        datas[i].append(float(lst2[j]))
+        j+=1
+    j=0
+    i+=1
+#"""
+#特征归一化M
+Max=datas[0][:]
+Min=datas[0][:]
+i=0
+j=0
+while(i<len(datas)):
+    while(j<len(datas[0])):
+        if(Max[j]<datas[i][j]):
+            Max[j]=datas[i][j]
+        if(Min[j]>datas[i][j]):
+            Min[j]=datas[i][j]
+        j+=1
+    i+=1
+    j=0            
+M=list()
+j=0
+while(j<len(datas[0])):
+    M.append(Max[j]-Min[j])
+    j+=1
+i=0
+j=0
+while(i<len(datas)):
+    while(j<len(datas[0])):
+        datas[i][j]/=M[j]
+        j+=1
+    j=0
+    i+=1    
+
+#"""
+  
+#初始化聚类中心(随机产生)
+c=int(input("输入c值: ")) 
+b=2#int(input("输入b值: ")) 
+e=0.01#float(input("输入ε值: "))   # ε值
+i=0
+j=0
+m=list()      #m为聚类中心
+m0=list()
+mtypes=list()
+mtruetypes=list()
+while(i<c):
+    r=random.randint(0,len(datas)-1)
+    m.append(datas[r])
+    mtruetypes.append(types[r])
+    mtypes.append(i)
+    i+=1
+i=0
+print("初始聚类中心：")
+print(m)
+print(mtruetypes)
+while(i<c):
+    m0.append(list())
+    m0[i]=(m[i][:])
+    i+=1
+
+u=list()
+i=0
+j=0
+while(i<len(datas)):
+    u.append(list())
+    while(j<c):
+        u[i].append(0)
+        j+=1
+    i+=1
+    j=0    
+i=0
+j=0
+#FCM聚类，输入一个样本，输出隶属度函数
+def fcm(c,b,m,unsure_data):
+    i=0
+    j=0
+    d=0
+    u=list()
+    ddistance=list()  #距离平方的倒数
+    while(i<c):
+        while(j<len(m[0])):
+            d+=(unsure_data[j]-m[i][j])**2
+            j+=1
+        if(d==0):      #如果有样本与聚类中心重合，则将其相应u置为[1,0,0]的形式，1为该中心对应的一类
+            j=0
+            while(j<c):
+                if(j!=i):
+                    u.append(0)
+                else:
+                    u.append(1)    
+                j+=1    
+            return(u)        
+        ddistance.append((1/d)**(1/(b-1)))
+        i+=1
+        d=0
+        j=0
+    i=0
+    j=0
+    sumdd=0
+    while(i<c):
+        sumdd+=ddistance[i]
+        i+=1
+    while(j<c):
+        u.append(ddistance[j]/sumdd)
+        j+=1
+    return(u)
+#i=len(fcm(c,b,[[6.1,3.0,4.6,1.4],[6.1,2.9,4.7,1.4],[7.1,3.0,5.9,2.1]],[6.1,2.9,4.7,1.4]))
+
+#判断前后聚类中心差是否小于ε
+def m_is_m0(m,m0,e):
+    i=0
+    j=0
+    r=True    
+    s=0
+    while(i<len(m)):
+        while(j<len(m[i])):
+            s+=(m[i][j]-m0[i][j])**2
+            j+=1
+        i+=1
+        j=0    
+    i=0
+    while(i<len(m)):
+        if(s**0.5>e):
+            r=False
+            break
+        i+=1    
+    return(r)
+
+#FCM过程
+i=0
+u=list()
+while(i<len(datas)):
+    u.append(list())
+    while(j<c):
+        u[i].append(0)
+        j+=1
+    i+=1    
+while(True):
+    j=0
+    r=0
+    i=0
+    s1=0
+    s2=0
+    while(i<len(datas)):         #聚类
+        u[i]=fcm(c,b,m,datas[i])
+        i+=1
+    i=0
+    while(j<c):                  #更新聚类中心m
+        while(r<len(datas[0])):
+            while(i<len(datas)):
+                s1+=datas[i][r]*(u[i][j]**b)
+                s2+=(u[i][j])**b
+                i+=1
+            m[j][r]=s1/s2
+            s1=0
+            s2=0  
+            i=0
+            r+=1
+        r=0
+        j+=1         
+    if(m_is_m0(m,m0,e)):
+        break
+    z=0
+    while(z<c):
+        m0[z]=(m[z][:])
+        z+=1
+    z=0
+
+
+#统计纯度
+i=0
+j=0
+r=0
+result=list()
+ftypes=dict()
+while(i<c):
+    ftypes[i]=list()
+    i+=1
+i=0    
+while(i<len(u)):
+     r=u[i].index(max(u[i]))
+     ftypes[r].append(i)
+     i+=1
+i=0     
+print(ftypes)
+while(i<c):
+    result.append(list())
+    while(j<c):
+        result[i].append(0)
+        j+=1
+    i+=1
+    j=0    
+for key,v in ftypes.items():
+    i=0
+    j=0
+    while(i<len(ftypes[key])):
+        if(ftypes[key][i]<50):
+            result[key][0]+=1
+        elif(ftypes[key][i]<100):
+            result[key][1]+=1
+        else:
+            result[key][2]+=1
+        i+=1        
+i=0
+purity=list()    #纯度(正确聚类的文档数占总文档的比例) 
+while(i<c+1):
+    purity.append(0)
+    i+=1
+i=0
+j=0
+pn=0
+while(i<len(result)):
+    if(result[i].index(max(result[i]))==0):
+        pn+=result[i][0]
+        purity[j+1]=result[i][0]/len(ftypes[i])
+    elif(result[i].index(max(result[i]))==1):
+        pn+=result[i][1]
+        purity[j+2]=result[i][1]/len(ftypes[i])
+    else:
+        pn+=result[i][2]
+        purity[j+3]=result[i][2]/len(ftypes[i])
+    i+=1
+purity[0]=pn/len(u)
+print("聚类结果：")
+print(ftypes)
+print("总纯度为"+str(purity[0]))
+print("第一类样本纯度为"+str(purity[1]))
+print("第二类样本纯度为"+str(purity[2]))
+print("第三类样本纯度为"+str(purity[3]))
